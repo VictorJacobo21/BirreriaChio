@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Mesa {
+  id      Int      @id @default(autoincrement())
+  numero  Int      @unique
+  pedidos Pedido[]
+}
+
+model Producto {
+  id          Int      @id @default(autoincrement())
+  nombre      String   @unique
+  precio      Float
+  activo      Boolean  @default(true)
+
+  items       ItemPedido[]      // relación con ItemPedido
+  comboItems  ComboItem[]       // relación inversa con ComboItem
+}
+
+model Pedido {
+  id         Int           @id @default(autoincrement())
+  estado     EstadoPedido
+  creado     DateTime      @default(now())
+
+  mesaId     Int
+  metodoPago MetodoPago?
+  pagadoEn   DateTime?
+  mesa       Mesa          @relation(fields: [mesaId], references: [id])
+
+  items      ItemPedido[]               // relación con ItemPedido
+  comboItems ComboItem[] @relation("PedidoComboItems")  // relación con ComboItem
+}
+
+model ItemPedido {
+  id          Int      @id @default(autoincrement())
+
+  pedidoId    Int
+  pedido      Pedido   @relation(fields: [pedidoId], references: [id])
+
+  productoId  Int
+  producto    Producto @relation(fields: [productoId], references: [id])
+
+  cantidad    Int
+
+  @@unique([pedidoId, productoId])
+}
+
+model Combo {
+  id      Int         @id @default(autoincrement())
+  nombre  String
+  precio  Float
+  activo  Boolean     @default(true)
+
+  items   ComboItem[] // relación con ComboItem
+}
+
+model ComboItem {
+  id         Int      @id @default(autoincrement())
+  comboId    Int
+  productoId Int
+  pedidoId   Int?     // opcional si el combo está en un pedido
+  cantidad   Int
+
+  combo      Combo    @relation(fields: [comboId], references: [id])
+  producto   Producto @relation(fields: [productoId], references: [id])
+  pedido     Pedido?  @relation("PedidoComboItems", fields: [pedidoId], references: [id]) // relación con Pedido
+
+  @@unique([comboId, productoId])
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TARJETA
+  TRANSFERENCIA
+}
+
+enum EstadoPedido {
+  PENDIENTE
+  PREPARACION
+  LISTO
+  PAGADO
+  CANCELADO
+}
