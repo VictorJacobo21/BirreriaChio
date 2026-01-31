@@ -261,7 +261,7 @@ router.patch("/:id/pagar", async (req, res) => {
       data: {
         estado: "PAGADO",
         metodoPago,
-        pagadoEn: now
+        pagadoEn: aux
       }
     });
 

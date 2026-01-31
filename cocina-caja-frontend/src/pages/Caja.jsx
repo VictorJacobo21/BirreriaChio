@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
+import { useRef } from "react";
 import {
   Card, Button, Typography, Grid, Box,
   Dialog, DialogTitle, DialogContent, DialogActions,
   RadioGroup, FormControlLabel, Radio
 } from "@mui/material";
 import axios from "axios";
+import "./Caja.css"; // Archivo CSS separado para estilos de impresión
 
-const API_URL = "http://192.168.100.134:3000";
+const API_URL = "http://192.168.100.166:3000";
 
 export default function Caja() {
+  const ticketRef = useRef();
   const [pedidos, setPedidos] = useState([]);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
@@ -16,16 +19,24 @@ export default function Caja() {
 
   useEffect(() => {
     if (pedidoAImprimir) {
+      // Esperar un momento para que el DOM se actualice
       setTimeout(() => {
         window.print();
-        setPedidoAImprimir(null);
+        // Restaurar después de imprimir
+        setTimeout(() => {
+          setPedidoAImprimir(null);
+        }, 100);
       }, 300);
     }
   }, [pedidoAImprimir]);
 
   const cargarPedidos = async () => {
-    const res = await axios.get(`${API_URL}/pedidos/listos`);
-    setPedidos(res.data);
+    try {
+      const res = await axios.get(`${API_URL}/pedidos/listos`);
+      setPedidos(res.data);
+    } catch (error) {
+      console.error("Error cargando pedidos:", error);
+    }
   };
 
   useEffect(() => {
@@ -35,13 +46,18 @@ export default function Caja() {
   }, []);
 
   const pagarPedido = async () => {
-    await axios.patch(
-      `${API_URL}/pedidos/${pedidoSeleccionado.id}/pagar`,
-      { metodoPago }
-    );
-    setPedidoAImprimir(pedidoSeleccionado);
-    setPedidoSeleccionado(null);
-    cargarPedidos();
+    try {
+      await axios.patch(
+        `${API_URL}/pedidos/${pedidoSeleccionado.id}/pagar`,
+        { metodoPago }
+      );
+      
+      setPedidoAImprimir(pedidoSeleccionado);
+      setPedidoSeleccionado(null);
+      cargarPedidos();
+    } catch (error) {
+      console.error("Error pagando pedido:", error);
+    }
   };
 
   const calcularTotal = (pedido) =>
@@ -121,41 +137,72 @@ export default function Caja() {
         </Box>
       </div>
 
-      {/* TICKET */}
+      {/* TICKET - SOLO VISIBLE AL IMPRIMIR */}
       {pedidoAImprimir && (
-        <div id="ticket-print">
-          <div className="ticket-header">
-            <h2>🌮 Birriería Chio</h2>
-            <p>Ciudad Victoria y Quintana Roo 300 #123</p>
-            <p>Tel: 686-426-7716</p>
-          </div>
-
-          <hr />
-
-          <p>Mesa: {pedidoAImprimir.mesaId}</p>
-          <p>Fecha: {new Date().toLocaleString()}</p>
-
-          <hr />
-
-          {pedidoAImprimir.items.map(item => (
-            <div key={item.id} className="ticket-item">
-              <span>{item.producto.nombre} x{item.cantidad}</span>
-              <span>${(item.producto.precio * item.cantidad).toFixed(2)}</span>
+        <div className="ticket-container" ref={ticketRef}>
+          <div className="ticket-content">
+            <div className="ticket-header">
+              <h1>🌮 Birriería Chio</h1>
+              <p>Ciudad Victoria y Quintana Roo 300 #123</p>
+              <p>Tel: 686-426-7716</p>
+              <p>--------------------------------</p>
             </div>
-          ))}
 
-          <hr />
+            <div className="ticket-info">
+              <p><strong>Mesa:</strong> {pedidoAImprimir.mesaId}</p>
+              <p><strong>Fecha:</strong> {new Date().toLocaleString('es-MX')}</p>
+              <p><strong>Folio:</strong> #{pedidoAImprimir.id.toString().padStart(4, '0')}</p>
+              <p>--------------------------------</p>
+            </div>
 
-          <div className="ticket-total">
-            <strong>TOTAL</strong>
-            <strong>${calcularTotal(pedidoAImprimir).toFixed(2)}</strong>
+            <div className="ticket-items">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{textAlign: 'left'}}>Cant.</th>
+                    <th style={{textAlign: 'left', paddingLeft: '10px'}}>Descripción</th>
+                    <th style={{textAlign: 'right'}}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pedidoAImprimir.items.map(item => (
+                    <tr key={item.id}>
+                      <td>x{item.cantidad}</td>
+                      <td style={{paddingLeft: '10px'}}>{item.producto.nombre}</td>
+                      <td style={{textAlign: 'right'}}>
+                        ${(item.producto.precio * item.cantidad).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p>--------------------------------</p>
+            </div>
+
+            <div className="ticket-total">
+              <div className="total-row">
+                <span>SUBTOTAL:</span>
+                <span>${calcularTotal(pedidoAImprimir).toFixed(2)}</span>
+              </div>
+              <div className="total-row">
+                <span>TOTAL:</span>
+                <span className="grand-total">${calcularTotal(pedidoAImprimir).toFixed(2)}</span>
+              </div>
+              <p>--------------------------------</p>
+            </div>
+
+            <div className="ticket-payment">
+              <p><strong>Método de pago:</strong> {metodoPago}</p>
+              <p>--------------------------------</p>
+            </div>
+
+            <div className="ticket-footer">
+              <p>¡Gracias por su preferencia!</p>
+              <p>Vuelva pronto</p>
+              <br/>
+              <p>*** Ticket generado automáticamente ***</p>
+            </div>
           </div>
-
-          <p>Pago: {metodoPago}</p>
-
-          <hr />
-
-          <p className="ticket-footer">¡Gracias por su compra!</p>
         </div>
       )}
     </>

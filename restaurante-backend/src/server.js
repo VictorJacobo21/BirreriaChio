@@ -1,17 +1,25 @@
-import express from "express"
-import cors from "cors"
-import pedidosRouter from "./routes/pedidos.js"
+import express from "express";
+import cors from "cors";
+import pedidosRouter from "./routes/pedidos.js";
+import impresoraRouter from "./impresora.js"; // <-- Importar el nuevo router
 
-console.log("SERVER LOADED")
-const app = express()
+console.log("SERVER LOADED");
 
-app.use(cors())
-app.use(express.json())
+const app = express();
 
-app.get("/test", (req,res)=>{
-  res.send("Servidor vivo")
-})
+app.use(cors());
+app.use(express.json());
 
-app.use("/pedidos", pedidosRouter)
+// Ruta de prueba
+app.get("/test", (req, res) => {
+  res.send("Servidor vivo");
+});
 
-export default app
+// Tus rutas existentes
+app.use("/pedidos", pedidosRouter);
+
+// Nueva ruta para impresión
+app.use("/impresora", impresoraRouter); // <-- Agregar esta línea
+
+// Exportar la app (si usas server.js como módulo)
+export default app;

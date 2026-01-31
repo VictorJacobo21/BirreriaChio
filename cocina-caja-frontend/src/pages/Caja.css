@@ -1,0 +1,140 @@
+/* Estilos normales - ocultar ticket */
+.ticket-container {
+  display: none;
+}
+
+/* Estilos de impresión */
+@media print {
+  /* Ocultar todo excepto el ticket */
+  body * {
+    visibility: hidden;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .ticket-container,
+  .ticket-container * {
+    visibility: visible;
+  }
+  
+  .ticket-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    display: block !important;
+  }
+  
+  .ticket-content {
+    width: 80mm;
+    margin: 0 auto;
+    padding: 5mm;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12pt;
+    line-height: 1.2;
+  }
+  
+  .ticket-header {
+    text-align: center;
+    margin-bottom: 5mm;
+  }
+  
+  .ticket-header h1 {
+    font-size: 14pt;
+    font-weight: bold;
+    margin: 2mm 0;
+  }
+  
+  .ticket-header p {
+    font-size: 9pt;
+    margin: 1mm 0;
+  }
+  
+  .ticket-info p {
+    font-size: 10pt;
+    margin: 1mm 0;
+  }
+  
+  .ticket-items table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3mm 0;
+  }
+  
+  .ticket-items th {
+    font-size: 9pt;
+    padding-bottom: 2mm;
+    border-bottom: 1px dashed #000;
+  }
+  
+  .ticket-items td {
+    font-size: 10pt;
+    padding: 1mm 0;
+  }
+  
+  .ticket-total {
+    margin: 3mm 0;
+  }
+  
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11pt;
+    margin: 1mm 0;
+  }
+  
+  .grand-total {
+    font-weight: bold;
+    font-size: 12pt;
+  }
+  
+  .ticket-payment p {
+    font-size: 10pt;
+    margin: 1mm 0;
+  }
+  
+  .ticket-footer {
+    text-align: center;
+    margin-top: 5mm;
+    font-size: 9pt;
+  }
+  
+  .ticket-footer p {
+    margin: 1mm 0;
+  }
+  
+  /* Ocultar elementos no necesarios */
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Evitar saltos de página dentro del ticket */
+  .ticket-content {
+    page-break-inside: avoid;
+  }
+  
+  /* Configuración de márgenes para impresora térmica */
+  @page {
+    margin: 0;
+    size: 80mm auto;
+  }
+}
+
+/* Para vista previa en pantalla */
+@media screen {
+  .ticket-container {
+    display: none;
+  }
+  
+  .ticket-container.preview {
+    display: block;
+    width: 80mm;
+    margin: 20px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    background: white;
+  }
+}

@@ -71,26 +71,68 @@ button:focus-visible {
 }
 
 @media print {
+
   .no-print {
     display: none !important;
   }
 
   #ticket-print {
-    display: block;
     width: 80mm;
-    padding: 5mm;
-    font-family: monospace;
-    font-size: 12px;
+    padding: 12px;
+    font-family: "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #000;
   }
 
-  .ticket-header,
-  .ticket-footer {
+  #ticket-print * {
+    margin: 0;
+    padding: 0;
+  }
+
+  .ticket-header {
     text-align: center;
+    margin-bottom: 8px;
   }
 
-  .ticket-item,
+  .ticket-header h2 {
+    font-size: 18px;
+    margin-bottom: 4px;
+  }
+
+  .ticket-header p {
+    font-size: 11px;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px dashed #000;
+    margin: 6px 0;
+  }
+
+  .ticket-info p {
+    font-size: 12px;
+    margin: 2px 0;
+  }
+
+  .ticket-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin: 3px 0;
+  }
+
   .ticket-total {
     display: flex;
     justify-content: space-between;
+    font-size: 15px;
+    font-weight: bold;
+    margin-top: 6px;
+  }
+
+  .ticket-footer {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 12px;
   }
 }

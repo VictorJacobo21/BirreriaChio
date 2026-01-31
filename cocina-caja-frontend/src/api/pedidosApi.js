@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://192.168.100.134:3000";
+const API_URL = "http://192.168.100.166:3000";
 
 export const getPedidosActivos = async () => {
   const res = await axios.get(`${API_URL}/pedidos/activos`);
