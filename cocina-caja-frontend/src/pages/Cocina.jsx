@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Card,
   Button,
@@ -17,22 +17,39 @@ export default function Cocina() {
   const [pedidos, setPedidos] = useState([]);
   const [prevCount, setPrevCount] = useState(0);
   const [audioEnable, setAudioEnable] = useState(false)
-  const audio = new Audio("/sonido.mp3");
+  const [prevPendientes, setPrevPendientes] = useState(0);
 
-  const cargarPedidos = async () => {
-    const data = await getPedidosActivos();
-    if(data.length > prevCount){
-      //audio.play();
-    }
-    console.log(data);
-    setPedidos(data);
-  };
+   const audioRef = useRef(null);
 
   useEffect(() => {
-    cargarPedidos();
-    const interval = setInterval(cargarPedidos, 5000);
-    return () => clearInterval(interval);
+    audioRef.current = new Audio("/sonido.mp3");
   }, []);
+  const cargarPedidos = async () => {
+  const data = await getPedidosActivos();
+
+  const pendientes = data.filter(p => p.estado === "PENDIENTE").length;
+
+  setPrevPendientes(prev => {
+    if (audioEnable && pendientes > prev) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(err => {
+        console.log("Audio bloqueado:", err);
+      });
+    }
+    return pendientes;
+  });
+
+  setPedidos(data);
+};
+
+
+
+  useEffect(() => {
+  cargarPedidos();
+  const interval = setInterval(cargarPedidos, 5000);
+  return () => clearInterval(interval);
+}, [audioEnable]);
+
 
   const cola = pedidos.filter(p => p.estado === "PENDIENTE");
   const preparando = pedidos.filter(p => p.estado === "PREPARACION");
@@ -42,7 +59,6 @@ export default function Cocina() {
   const iniciarPreparacion = async (id) => {
   try {
     await cambiarEstadoPedido(id, "PREPARACION");
-    console.log("Preparando pedido", id);
     cargarPedidos(); // refresca columnas
   } catch (error) {
     alert(error.response?.data?.error || "No se puede preparar más pedidos");
@@ -59,23 +75,63 @@ const terminarPedido = async (id) => {
 };
 
 
-  const PedidoCard = ({ pedido, botonTexto, onClick, sinBoton }) => (
+ const PedidoCard = ({ pedido, botonTexto, onClick, sinBoton }) => (
   <Card sx={{ p: 2, mb: 2 }}>
-    <Typography variant="h5">Mesa {pedido.mesaId}</Typography>
+    <Typography variant="h5">
+  {pedido.tipo === "MESA"
+    ? `📍 Mesa ${pedido.mesaId}`
+    : `🥡 Para llevar: ${pedido.nombreCliente || "Sin nombre"}`
+  }
+</Typography>
 
+
+    {/* ITEMS */}
     {pedido.items.map(item => (
       <Typography key={item.id}>
         {item.producto.nombre} x{item.cantidad}
       </Typography>
     ))}
 
+    {/* NOTA DEL PEDIDO */}
+    {pedido.nota && pedido.nota.trim() !== "" && (
+  <Box
+    sx={{
+      mt: 1,
+      p: 1,
+      bgcolor: "#fff3cd",
+      borderRadius: 1,
+      border: "1px solid #ffeeba",
+      maxWidth: "100%",
+    }}
+  >
+    <Typography variant="subtitle2" color="error">
+      📝 Nota:
+    </Typography>
+
+    <Typography
+      variant="body2"
+      sx={{
+        whiteSpace: "pre-wrap",   // respeta saltos de línea
+        wordBreak: "break-word",  // corta palabras largas
+        maxHeight: "100px",
+        maxWidth: "200px",
+        overflowWrap: "break-word"
+      }}
+    >
+      {pedido.nota}
+    </Typography>
+  </Box>
+)}
+
+
     {!sinBoton && (
-      <Button fullWidth variant="contained" onClick={onClick}>
+      <Button fullWidth variant="contained" sx={{ mt: 1 }} onClick={onClick}>
         {botonTexto}
       </Button>
     )}
   </Card>
 );
+
 
 
   return (
@@ -99,6 +155,7 @@ const terminarPedido = async (id) => {
           p: 2
         }}
       >
+
         <Typography variant="h3" align="center" mb={2}>
           🍳 Cocina
         </Typography>
@@ -108,10 +165,22 @@ const terminarPedido = async (id) => {
           spacing={3}
           justifyContent="center"
           alignItems="stretch"
-        >
+        >{!audioEnable && (
+  <Button
+  variant="contained"
+  color="warning"
+  onClick={() => {
+    setAudioEnable(true);
+    audioRef.current.play().catch(err => console.log("Bloqueado:", err));
+  }}
+  sx={{ mb: 2 }}
+>
+  🔊 Activar sonido
+</Button>
+)}
           {/* COLA */}
           <Grid item xs={12} md={4} display="flex" justifyContent="center">
-            <Box sx={{ width: "100%" }}>
+            <Box sx={{  width: "100%", maxHeight: "80vh", overflowY: "auto"}}>
               <Typography variant="h4" align="center">🕒 En cola</Typography>
               {cola.map(pedido => (
               <PedidoCard

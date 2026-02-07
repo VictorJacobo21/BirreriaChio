@@ -122,7 +122,10 @@ export default function VentasDiarias() {
         </Typography>
       ))}
 
-      <TableContainer component={Paper} sx={{ mt: 2 }}>
+      <TableContainer component={Paper} sx={{ mt: 2, 
+        maxHeight: "60vh",
+        overflowY: "auto"
+       }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -141,7 +144,7 @@ export default function VentasDiarias() {
               return (
                 <TableRow key={p.id}>
                   <TableCell>{p.id}</TableCell>
-                  <TableCell>{p.mesa.numero}</TableCell>
+                  <TableCell>{p.mesa?.numero || "Para llevar"}</TableCell>
                   <TableCell>{p.metodoPago}</TableCell>
                   <TableCell>${totalPedido.toFixed(2)}</TableCell>
                 </TableRow>

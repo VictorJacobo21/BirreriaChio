@@ -35,6 +35,14 @@ router.get("/combos", async (req, res) => {
   res.json(combos)
 })
 
+router.get("/productos/todos", async (req, res) => {
+  const productos = await prisma.producto.findMany({
+    orderBy: { nombre: "asc" }
+  });
+  res.json(productos);
+});
+
+
 //Ver combo por ID
 router.get("/combos/:id", async (req, res) => {
   const id = Number(req.params.id)
@@ -261,6 +269,7 @@ router.patch("/:id/pagar", async (req, res) => {
       data: {
         estado: "PAGADO",
         metodoPago,
+        finishedAt: new Date(),
         pagadoEn: aux
       }
     });
@@ -290,7 +299,13 @@ router.get("/mesas", async (req, res) => {
 
 router.get("/all", async (req, res) => {
   const productos = await prisma.producto.findMany({
-    where: { activo: true }
+    where: { activo: true },
+  include: {
+    categoria: true
+  },
+  orderBy: {
+    nombre: "asc"
+  }
   })
   res.json(productos)
 })
@@ -394,7 +409,13 @@ router.post("/:id/combo", async (req, res) => {
 // GET /productos
 router.get("/", async (req, res) => {
   const productos = await prisma.producto.findMany({
-    where: { activo: true }
+    where: { activo: true },
+  include: {
+    categoria: true
+  },
+  orderBy: {
+    nombre: "asc"
+  }
   })
 
   res.json(productos)
@@ -402,37 +423,48 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { mesaId, items } = req.body
+    const { tipo, mesaId, nombreCliente, nota, items } = req.body
     console.log("BODY:", req.body)
-    if (!mesaId || !items || items.length === 0) {
-      
+
+    if (!tipo || !items || items.length === 0) {
       return res.status(400).json({ error: "Pedido incompleto" })
     }
 
-    // validar mesa
-    const mesa = await prisma.mesa.findUnique({
-      where: { id: mesaId }
-    })
-
-    if (!mesa) {
-      return res.status(400).json({ error: "Mesa inválida" })
+    // VALIDACIONES SEGÚN TIPO
+    if (tipo === "MESA" && !mesaId) {
+      return res.status(400).json({ error: "Mesa requerida" })
     }
 
-    // 🔴 VALIDAR PEDIDO ACTIVO
-    const pedidoActivo = await prisma.pedido.findFirst({
-      where: {
-        mesaId,
-        estado: {
-          in: ["PENDIENTE", "PREPARACION"]
-        }
-      },
-      orderBy: { creado: "desc" }
-    })
+    if (tipo === "LLEVAR" && !nombreCliente) {
+      return res.status(400).json({ error: "Nombre cliente requerido" })
+    }
 
-    if (pedidoActivo) {
-      return res.status(400).json({
-        error: "La mesa ya tiene un pedido activo"
+    // validar mesa solo si es MESA
+    if (tipo === "MESA") {
+      const mesa = await prisma.mesa.findUnique({
+        where: { id: mesaId }
       })
+
+      if (!mesa) {
+        return res.status(400).json({ error: "Mesa inválida" })
+      }
+
+      // 🔴 VALIDAR PEDIDO ACTIVO SOLO PARA MESA
+      const pedidoActivo = await prisma.pedido.findFirst({
+        where: {
+          mesaId,
+          estado: {
+            in: ["PENDIENTE", "PREPARACION"]
+          }
+        },
+        orderBy: { creado: "desc" }
+      })
+
+      if (pedidoActivo) {
+        return res.status(400).json({
+          error: "La mesa ya tiene un pedido activo"
+        })
+      }
     }
 
     // validar productos
@@ -447,11 +479,14 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Producto inválido o inactivo" })
     }
 
-    // crear pedido + items
+    // crear pedido
     const pedido = await prisma.pedido.create({
       data: {
-        mesaId,
+        tipo,
+        nombreCliente: tipo === "LLEVAR" ? nombreCliente : null,
+        mesaId: tipo === "MESA" ? mesaId : null,
         estado: "PENDIENTE",
+        nota: nota || null, 
         items: {
           create: items.map(item => ({
             productoId: item.productoId,
@@ -469,9 +504,10 @@ router.post("/", async (req, res) => {
 
   } catch (error) {
     console.error(error)
-    res.status(500).json({ error: "Error creando pedido" })
+    res.status(500).json({ error: "Error creando pedidop" })
   }
 })
+
 
 router.get("/listos", async (req, res) => {
   try {
@@ -495,6 +531,68 @@ router.get("/listos", async (req, res) => {
     res.status(500).json({ error: "Error al obtener pedidos listos" });
   }
 });
+
+router.patch("/:id/imprimir", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const pedido = await prisma.pedido.update({
+      where: { id: Number(id) },
+      data: { impreso: true }
+    });
+
+    res.json(pedido);
+  } catch (error) {
+    console.error("Error al marcar pedido como impreso:", error);
+    res.status(500).json({ error: "No se pudo marcar como impreso" });
+  }
+});
+
+router.get("/tickets/pendientes", async (req, res) => {
+ const diezMin = new Date(Date.now() - 1000 * 60 * 10);
+  try {
+    const pedidos = await prisma.pedido.findMany({
+      where: {
+        impreso: false,
+        estado: "PAGADO" ,
+        finishedAt: { gte: diezMin }
+      },
+      include: {
+        items: {
+          include: { producto: true }
+        },
+        mesa: true
+      },
+      orderBy: {
+        creado: "asc"
+      }
+    });
+
+    res.json(pedidos);
+  } catch (error) {
+    console.error("Error tickets pendientes:", error);
+    res.status(500).json({ error: "Error obteniendo tickets pendientes" });
+  }
+});
+
+
+router.patch("/tickets/:id/descartar", async (req, res) => {
+  try {
+    await prisma.pedido.update({
+      where: { id: Number(req.params.id) },
+      data: {
+        impreso: true,
+        impresoEn: new Date()
+      }
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error descartando ticket:", error);
+    res.status(500).json({ error: "No se pudo descartar" });
+  }
+});
+
 
 // GET /pedidos/activos
 router.get("/activos", async (req, res) => {
@@ -528,8 +626,8 @@ router.get("/activos", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   const pedidoId = Number(req.params.id)
-  const { items } = req.body
-
+  const { items, nota} = req.body
+  console.log("NOTA RECIBIDA:", nota)
   try {
     // 1. Obtener pedido anterior
     const pedidoAnterior = await prisma.pedido.findUnique({
@@ -543,13 +641,16 @@ router.put("/:id", async (req, res) => {
 
     // 2. Verificar si algún producto aumentó
     let cambiarEstado = false
-    for (const i of items) {
-      const cantidadAnterior = mapaAnterior.get(i.productoId) || 0
-      if (i.cantidad > cantidadAnterior) {
-        cambiarEstado = true
-        break
-      }
+    // SOLO si estaba en LISTO y se agregan más productos
+if (pedidoAnterior.estado === "LISTO") {
+  for (const i of items) {
+    const cantidadAnterior = mapaAnterior.get(i.productoId) || 0
+    if (i.cantidad > cantidadAnterior) {
+      cambiarEstado = true
+      break
     }
+  }
+}
 
     // 3. Borrar items anteriores
     await prisma.itemPedido.deleteMany({
@@ -561,6 +662,7 @@ router.put("/:id", async (req, res) => {
       where: { id: pedidoId },
       data: {
         estado: cambiarEstado ? "PREPARACION" : pedidoAnterior.estado,
+        nota: nota,
         items: {
           create: items.map(i => ({
             productoId: i.productoId,

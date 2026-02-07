@@ -1,0 +1,37 @@
+CREATE OR REPLACE PROCEDURE asignar_categoria_por_lista(
+    p_categoria TEXT,
+    p_productos TEXT[]
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_categoria_id INT;
+BEGIN
+    SELECT id INTO v_categoria_id
+    FROM "Categoria"
+    WHERE nombre = p_categoria;
+
+    IF v_categoria_id IS NULL THEN
+        RAISE EXCEPTION 'Categoria no existe: %', p_categoria;
+    END IF;
+
+    UPDATE "Producto"
+    SET "categoriaId" = v_categoria_id
+    WHERE nombre = ANY(p_productos);
+
+    RAISE NOTICE 'Productos actualizados para categoria %', p_categoria;
+END;
+$$;
+
+
+
+-------
+
+CALL asignar_categoria_por_lista(
+  'Tacos',
+  ARRAY[
+    'Taco de birria',
+    'Taco dorado',
+    'Taco especial'
+  ]
+);

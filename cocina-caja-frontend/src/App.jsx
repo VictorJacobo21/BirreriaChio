@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import Cocina from "./pages/Cocina";
 import Caja from "./pages/Caja";
 import Ventas from "./pages/VentasDiarias";
+import Admin from "./pages/ProductosAdmin";
 import { AppBar, Toolbar, Button, Box } from "@mui/material";
 
 function App() {
@@ -19,6 +20,9 @@ function App() {
             <Button component={Link} to="/VentasDiarias" color="inherit">
               Ventas
             </Button>
+            <Button component={Link} to="/Admin" color="inherit">
+              Inventario
+            </Button>
           </Toolbar>
         </AppBar>
 
@@ -28,6 +32,7 @@ function App() {
             <Route path="/cocina" element={<Cocina />} />
             <Route path="/caja" element={<Caja />} />
              <Route path="/VentasDiarias" element={<Ventas />} />
+                 <Route path="/Admin" element={<Admin/>} />
           </Routes>
         </Box>
       </Box>

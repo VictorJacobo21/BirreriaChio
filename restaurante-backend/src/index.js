@@ -6,5 +6,5 @@ const server = createServer(app)
 
 server.listen(3000, "0.0.0.0",() => {
   console.log(process.env.DATABASE_URL);
-  console.log("Backend corriendo en http://localhost:3000")
+  console.log("Backend corriendo en...")
 })

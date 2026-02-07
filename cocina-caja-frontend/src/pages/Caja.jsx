@@ -8,11 +8,12 @@ import {
 import axios from "axios";
 import "./Caja.css"; // Archivo CSS separado para estilos de impresión
 
-const API_URL = "http://192.168.100.166:3000";
+const API_URL = "http://192.168.100.134:3000";
 
 export default function Caja() {
   const ticketRef = useRef();
   const [pedidos, setPedidos] = useState([]);
+  const [tickets, setTickets] = useState([]); 
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [pedidoAImprimir, setPedidoAImprimir] = useState(null);
@@ -30,20 +31,70 @@ export default function Caja() {
     }
   }, [pedidoAImprimir]);
 
-  const cargarPedidos = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/pedidos/listos`);
-      setPedidos(res.data);
-    } catch (error) {
-      console.error("Error cargando pedidos:", error);
-    }
-  };
+const TIEMPO_MAX = 10 * 60; // 10 min en segundos
 
-  useEffect(() => {
+const tiempoRestante = (ticket) => {
+  const finishedAt = new Date(ticket.finishedAt);
+  const ahora = new Date();
+  const diff = Math.floor((ahora - finishedAt) / 1000);
+  const restante = TIEMPO_MAX - diff;
+
+  if (restante <= 0) return "00:00";
+
+  const min = Math.floor(restante / 60);
+  const sec = restante % 60;
+
+  return `${min.toString().padStart(2,"0")}:${sec.toString().padStart(2,"0")}`;
+};
+
+const descartarTicket = async (id) => {
+  if (!confirm("¿Descartar este ticket?")) return;
+
+  await axios.patch(`${API_URL}/pedidos/tickets/${id}/descartar`);
+  cargarTickets();
+};
+
+  const cargarPedidos = async () => {
+  const res = await axios.get(`${API_URL}/pedidos/listos`);
+  setPedidos(res.data);
+};
+
+const cargarTickets = async () => {
+  const res = await axios.get(`${API_URL}/pedidos/tickets/pendientes`);
+  setTickets(res.data);
+};
+
+useEffect(() => {
+  cargarPedidos();
+  cargarTickets();
+  const interval = setInterval(() => {
     cargarPedidos();
-    const interval = setInterval(cargarPedidos, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    cargarTickets();
+  }, 5000);
+  return () => clearInterval(interval);
+}, []);
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setTickets(prev => [...prev]); // fuerza re-render
+  }, 3000);
+  return () => clearInterval(interval);
+}, []);
+
+  const imprimirTicket = async (pedido) => {
+  try {
+    // Mostrar ticket para imprimir
+    setPedidoAImprimir(pedido);
+
+    // Marcar como impreso en backend
+    await axios.patch(`${API_URL}/pedidos/${pedido.id}/imprimir`);
+
+    cargarTickets();
+  } catch (e) {
+    console.error("Error al imprimir:", e);
+    alert("Error al imprimir, revisa consola");
+  }
+};
 
   const pagarPedido = async () => {
     try {
@@ -52,7 +103,7 @@ export default function Caja() {
         { metodoPago }
       );
       
-      setPedidoAImprimir(pedidoSeleccionado);
+      
       setPedidoSeleccionado(null);
       cargarPedidos();
     } catch (error) {
@@ -73,35 +124,78 @@ export default function Caja() {
           </Typography>
 
           <Grid container spacing={3}>
-            {pedidos.map(pedido => (
-              <Grid item xs={12} md={4} key={pedido.id}>
-                <Card sx={{ p: 2 }}>
-                  <Typography variant="h5">Mesa {pedido.mesaId}</Typography>
 
-                  {pedido.items.map(item => (
-                    <Typography key={item.id}>
-                      {item.producto.nombre} x{item.cantidad} — $
-                      {(item.producto.precio * item.cantidad).toFixed(2)}
-                    </Typography>
-                  ))}
+{/* COLUMNA COBRAR */}
+<Grid item xs={12} md={6}>
+  <Typography variant="h4">💵 Para cobrar</Typography>
 
-                  <Typography variant="h6" sx={{ mt: 1 }}>
-                    Total: ${calcularTotal(pedido).toFixed(2)}
-                  </Typography>
+  {pedidos.map(pedido => (
+    <Card key={pedido.id} sx={{ p:2, mb:2 }}>
+      <Typography variant="h5">
+        {pedido.tipo === "LLEVAR"
+          ? `Para llevar: ${pedido.nombreCliente}`
+          : `Mesa ${pedido.mesaId}`}
+      </Typography>
 
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    color="success"
-                    sx={{ mt: 2 }}
-                    onClick={() => setPedidoSeleccionado(pedido)}
-                  >
-                    COBRAR
-                  </Button>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+      <Typography>Total: ${calcularTotal(pedido).toFixed(2)}</Typography>
+
+      <Button
+        fullWidth
+        color="success"
+        variant="contained"
+        onClick={() => setPedidoSeleccionado(pedido)}
+      >
+        COBRAR
+      </Button>
+    </Card>
+  ))}
+</Grid>
+
+
+{/* COLUMNA IMPRIMIR */}
+<Grid item xs={12} md={6}>
+  <Typography variant="h4">🖨️ Tickets pendientes</Typography>
+
+ {tickets.map(pedido => (
+  <Card key={pedido.id} sx={{ p:2, mb:2 }}>
+    <Typography variant="h6">
+      {pedido.tipo === "LLEVAR"
+        ? `Para llevar: ${pedido.nombreCliente || "Sin nombre"}`
+        : `Mesa ${pedido.mesa?.numero || pedido.mesaId}`}
+    </Typography>
+
+    <Typography>
+      Folio #{pedido.id}
+    </Typography>
+
+   <Button
+  fullWidth
+  variant="contained"
+  onClick={() => imprimirTicket(ticket)}
+>
+  🖨️ IMPRIMIR
+</Button>
+
+<Button
+  fullWidth
+  color="error"
+  variant="outlined"
+  sx={{ mt: 1 }}
+  onClick={() => descartarTicket(pedido.id)}
+>
+  🗑️ DESCARTAR
+</Button>
+
+<Typography variant="body2" sx={{ mt: 1 }}>
+  ⏳ Expira en: {tiempoRestante(pedido)}
+</Typography>
+
+  </Card>
+))}
+ 
+</Grid>
+
+</Grid>
 
           <Dialog open={!!pedidoSeleccionado} onClose={() => setPedidoSeleccionado(null)}>
             <DialogTitle>Confirmar pago</DialogTitle>

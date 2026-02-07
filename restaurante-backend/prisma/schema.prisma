@@ -19,6 +19,9 @@ model Producto {
   precio      Float
   activo      Boolean  @default(true)
 
+  categoriaId Int?
+  categoria   Categoria? @relation(fields: [categoriaId], references: [id])
+
   items       ItemPedido[]      // relación con ItemPedido
   comboItems  ComboItem[]       // relación inversa con ComboItem
 }
@@ -28,10 +31,18 @@ model Pedido {
   estado     EstadoPedido
   creado     DateTime      @default(now())
 
-  mesaId     Int
+  tipo       TipoPedido    @default(MESA)   
+  nombreCliente String?  
+  finishedAt  DateTime?                    
+  imprimirTicket Boolean @default(false)
+  nota      String?
+  impreso    Boolean @default(false)
+  impresoEn  DateTime?
+  mesaId     Int?
   metodoPago MetodoPago?
   pagadoEn   DateTime?
-  mesa       Mesa          @relation(fields: [mesaId], references: [id])
+  mesa       Mesa?          @relation(fields: [mesaId], references: [id])
+  
 
   items      ItemPedido[]               // relación con ItemPedido
   comboItems ComboItem[] @relation("PedidoComboItems")  // relación con ComboItem
@@ -47,7 +58,6 @@ model ItemPedido {
   producto    Producto @relation(fields: [productoId], references: [id])
 
   cantidad    Int
-
   @@unique([pedidoId, productoId])
 }
 
@@ -58,6 +68,12 @@ model Combo {
   activo  Boolean     @default(true)
 
   items   ComboItem[] // relación con ComboItem
+}
+
+model Categoria {
+  id        Int       @id @default(autoincrement())
+  nombre    String    @unique
+  productos Producto[]
 }
 
 model ComboItem {
@@ -86,4 +102,9 @@ enum EstadoPedido {
   LISTO
   PAGADO
   CANCELADO
+}
+
+enum TipoPedido {
+  MESA
+  LLEVAR
 }
